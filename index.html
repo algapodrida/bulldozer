@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulldozer Simulator 🚜</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(to bottom, #87CEEB 0%, #DEB887 70%, #8B4513 100%);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #canvas {
+            display: block;
+            background: linear-gradient(to bottom, #87CEEB 0%, #DEB887 60%, #8B4513 100%);
+        }
+
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+            min-width: 200px;
+        }
+
+        #upgradeMenu {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 300px;
+        }
+
+        .upgrade-btn {
+            width: 100%;
+            margin: 8px 0;
+            padding: 10px;
+            background: linear-gradient(to bottom, #4CAF50, #2E7D32);
+            color: white;
+            border: 2px solid #66BB6A;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+
+        .upgrade-btn:hover:not(:disabled) {
+            background: linear-gradient(to bottom, #66BB6A, #4CAF50);
+            transform: scale(1.05);
+        }
+
+        .upgrade-btn:disabled {
+            background: #555;
+            border-color: #777;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .upgrade-btn.belardi {
+            background: linear-gradient(to bottom, #FFD700, #FF8C00);
+            border-color: #FFA500;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+        }
+
+        .upgrade-btn.belardi:hover:not(:disabled) {
+            background: linear-gradient(to bottom, #FFED4E, #FFD700);
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 0 10px #FFD700;
+            }
+            50% {
+                box-shadow: 0 0 20px #FFD700, 0 0 30px #FF8C00;
+            }
+        }
+
+        h2 {
+            margin-bottom: 10px;
+            font-size: 18px;
+            text-align: center;
+            color: #FFD700;
+        }
+
+        .stat {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .particle {
+            position: absolute;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="canvas"></canvas>
+        
+        <div id="hud">
+            <div class="stat">💰 Dinero: <span id="money">0</span></div>
+            <div class="stat">⚡ Velocidad: <span id="speedDisplay">1</span>x</div>
+            <div class="stat">💪 Potencia: <span id="powerDisplay">1</span>x</div>
+            <div class="stat">🎯 Puntos: <span id="score">0</span></div>
+            <div class="stat" id="belardiStatus" style="display:none; color: #FFD700; font-weight: bold;">
+                ⭐ BELARDI ACTIVO ⭐
+            </div>
+        </div>
+
+        <div id="upgradeMenu">
+            <h2>🔧 MEJORAS</h2>
+            <button class="upgrade-btn" onclick="buyUpgrade('speed')">
+                🏃 Velocidad (+1)<br>
+                Costo: <span id="speedCost">50</span> 💰
+            </button>
+            <button class="upgrade-btn" onclick="buyUpgrade('power')">
+                💪 Potencia (+1)<br>
+                Costo: <span id="powerCost">100</span> 💰
+            </button>
+            <button class="upgrade-btn" onclick="buyUpgrade('capacity')">
+                📦 Capacidad (+5)<br>
+                Costo: <span id="capacityCost">75</span> 💰
+            </button>
+            <button class="upgrade-btn belardi" onclick="buyUpgrade('belardi')">
+                ⭐ BELARDI ⭐<br>
+                <small>Multiplicador x2 permanente</small><br>
+                Costo: <span id="belardiCost">500</span> 💰
+            </button>
+        </div>
+
+        <div id="controls">
+            🎮 Usa las flechas ←↑↓→ o WASD para moverte
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Game state
+        const game = {
+            money: 0,
+            score: 0,
+            speed: 1,
+            power: 1,
+            capacity: 10,
+            hasBelardi: false,
+            belardiMultiplier: 1
+        };
+
+        // Costs
+        const costs = {
+            speed: 50,
+            power: 100,
+            capacity: 75,
+            belardi: 500
+        };
+
+        // Bulldozer
+        const bulldozer = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            width: 60,
+            height: 40,
+            angle: 0,
+            speed: 0,
+            maxSpeed: 3,
+            rotation: 0,
+            collected: 0
+        };
+
+        // Obstacles (dirt piles)
+        const obstacles = [];
+        const maxObstacles = 20;
+
+        // Particles
+        const particles = [];
+
+        // Controls
+        const keys = {};
+
+        window.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        // Initialize obstacles
+        function createObstacle() {
+            return {
+                x: Math.random() * (canvas.width - 40) + 20,
+                y: Math.random() * (canvas.height - 40) + 20,
+                size: 20 + Math.random() * 20,
+                value: Math.floor(5 + Math.random() * 15),
+                color: `rgb(${139 + Math.random() * 50}, ${69 + Math.random() * 20}, 19)`
+            };
+        }
+
+        for (let i = 0; i < maxObstacles; i++) {
+            obstacles.push(createObstacle());
+        }
+
+        // Create particle effect
+        function createParticles(x, y, color) {
+            for (let i = 0; i < 10; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 5,
+                    vy: (Math.random() - 0.5) * 5,
+                    life: 1,
+                    color: color,
+                    size: Math.random() * 5 + 2
+                });
+            }
+        }
+
+        // Update particles
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.2; // gravity
+                p.life -= 0.02;
+
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        // Draw particles
+        function drawParticles() {
+            particles.forEach(p => {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, p.size, p.size);
+            });
+            ctx.globalAlpha = 1;
+        }
+
+        // Draw bulldozer
+        function drawBulldozer() {
+            ctx.save();
+            ctx.translate(bulldozer.x, bulldozer.y);
+            ctx.rotate(bulldozer.angle);
+
+            // Body
+            ctx.fillStyle = game.hasBelardi ? '#FFD700' : '#FFD700';
+            ctx.fillRect(-30, -20, 60, 40);
+            
+            // Cabin
+            ctx.fillStyle = game.hasBelardi ? '#FF8C00' : '#FFA500';
+            ctx.fillRect(-15, -25, 30, 30);
+            
+            // Window
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(-10, -20, 20, 15);
+            
+            // Blade
+            ctx.fillStyle = '#C0C0C0';
+            ctx.fillRect(-35, -15, 10, 30);
+            
+            // Tracks
+            ctx.fillStyle = '#333';
+            ctx.fillRect(-30, -25, 60, 8);
+            ctx.fillRect(-30, 17, 60, 8);
+
+            // Belardi effect
+            if (game.hasBelardi) {
+                ctx.strokeStyle = '#FFD700';
+                ctx.lineWidth = 3;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#FFD700';
+                ctx.strokeRect(-32, -22, 64, 44);
+                ctx.shadowBlur = 0;
+            }
+
+            ctx.restore();
+        }
+
+        // Draw obstacles
+        function drawObstacles() {
+            obstacles.forEach(obs => {
+                ctx.fillStyle = obs.color;
+                ctx.beginPath();
+                ctx.arc(obs.x, obs.y, obs.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Value indicator
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(obs.value, obs.x, obs.y + 4);
+            });
+        }
+
+        // Update bulldozer
+        function updateBulldozer() {
+            // Movement
+            if (keys['arrowup'] || keys['w']) {
+                bulldozer.speed = Math.min(bulldozer.speed + 0.5, bulldozer.maxSpeed * game.speed);
+            } else if (keys['arrowdown'] || keys['s']) {
+                bulldozer.speed = Math.max(bulldozer.speed - 0.5, -bulldozer.maxSpeed * game.speed * 0.5);
+            } else {
+                bulldozer.speed *= 0.95;
+            }
+
+            // Rotation
+            if (keys['arrowleft'] || keys['a']) {
+                bulldozer.angle -= 0.05;
+            }
+            if (keys['arrowright'] || keys['d']) {
+                bulldozer.angle += 0.05;
+            }
+
+            // Move
+            bulldozer.x += Math.cos(bulldozer.angle) * bulldozer.speed;
+            bulldozer.y += Math.sin(bulldozer.angle) * bulldozer.speed;
+
+            // Wrap around screen
+            if (bulldozer.x < 0) bulldozer.x = canvas.width;
+            if (bulldozer.x > canvas.width) bulldozer.x = 0;
+            if (bulldozer.y < 0) bulldozer.y = canvas.height;
+            if (bulldozer.y > canvas.height) bulldozer.y = 0;
+
+            // Check collisions with obstacles
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obs = obstacles[i];
+                const dx = bulldozer.x - obs.x;
+                const dy = bulldozer.y - obs.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < obs.size + 30) {
+                    // Collect obstacle
+                    const earnings = obs.value * game.power * game.belardiMultiplier;
+                    game.money += earnings;
+                    game.score += earnings;
+                    bulldozer.collected++;
+                    
+                    createParticles(obs.x, obs.y, obs.color);
+                    obstacles.splice(i, 1);
+                    obstacles.push(createObstacle());
+                }
+            }
+        }
+
+        // Buy upgrade
+        function buyUpgrade(type) {
+            const cost = costs[type];
+            
+            if (game.money < cost) {
+                alert('¡No tienes suficiente dinero! 💰');
+                return;
+            }
+
+            game.money -= cost;
+
+            switch(type) {
+                case 'speed':
+                    game.speed += 1;
+                    costs.speed = Math.floor(costs.speed * 1.5);
+                    break;
+                case 'power':
+                    game.power += 1;
+                    costs.power = Math.floor(costs.power * 1.5);
+                    break;
+                case 'capacity':
+                    game.capacity += 5;
+                    costs.capacity = Math.floor(costs.capacity * 1.5);
+                    break;
+                case 'belardi':
+                    if (!game.hasBelardi) {
+                        game.hasBelardi = true;
+                        game.belardiMultiplier = 2;
+                        document.getElementById('belardiStatus').style.display = 'block';
+                        alert('¡🌟 BELARDI ACTIVADO! 🌟\n¡Todas tus ganancias se duplican!');
+                    }
+                    break;
+            }
+
+            updateUI();
+        }
+
+        // Update UI
+        function updateUI() {
+            document.getElementById('money').textContent = Math.floor(game.money);
+            document.getElementById('score').textContent = Math.floor(game.score);
+            document.getElementById('speedDisplay').textContent = game.speed;
+            document.getElementById('powerDisplay').textContent = game.power;
+            
+            document.getElementById('speedCost').textContent = costs.speed;
+            document.getElementById('powerCost').textContent = costs.power;
+            document.getElementById('capacityCost').textContent = costs.capacity;
+            document.getElementById('belardiCost').textContent = costs.belardi;
+
+            // Disable buttons if can't afford
+            document.querySelectorAll('.upgrade-btn').forEach((btn, index) => {
+                const types = ['speed', 'power', 'capacity', 'belardi'];
+                const cost = costs[types[index]];
+                btn.disabled = game.money < cost || (types[index] === 'belardi' && game.hasBelardi);
+            });
+        }
+
+        // Game loop
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw ground texture
+            ctx.fillStyle = '#8B7355';
+            ctx.fillRect(0, canvas.height * 0.6, canvas.width, canvas.height * 0.4);
+
+            drawObstacles();
+            drawBulldozer();
+            updateBulldozer();
+            updateParticles();
+            drawParticles();
+            updateUI();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // Start game
+        gameLoop();
+    </script>
+</body>
+</html>

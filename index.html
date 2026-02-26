@@ -1,474 +1,701 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bulldozer Simulator 🚜</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🚜 Bulldozer Corp</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --gold: #f59e0b;
+  --green: #16a34a;
+  --dirt: #92400e;
+  --ui-bg: rgba(10,12,8,0.92);
+  --border: rgba(245,158,11,0.25);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'Rajdhani', sans-serif; background:#1a0e05; overflow:hidden; height:100vh; }
+canvas { display:block; }
 
-        body {
-            font-family: 'Arial', sans-serif;
-            background: linear-gradient(to bottom, #87CEEB 0%, #DEB887 70%, #8B4513 100%);
-            overflow: hidden;
-            height: 100vh;
-        }
+/* HUD LEFT */
+#hud {
+  position:absolute; top:16px; left:16px;
+  background: var(--ui-bg);
+  border:1px solid var(--border);
+  border-radius:14px; padding:16px 20px;
+  color:white; min-width:190px;
+  backdrop-filter:blur(8px);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+#hud h3 {
+  font-family:'Black Ops One',sans-serif; color:var(--gold);
+  font-size:15px; letter-spacing:2px; margin-bottom:12px;
+  border-bottom:1px solid var(--border); padding-bottom:8px;
+}
+.stat { display:flex; justify-content:space-between; align-items:center; margin:6px 0; font-size:14px; color:#d1d5db; }
+.stat span { color:white; font-weight:700; font-size:15px; }
+.stat .icon { font-size:16px; margin-right:6px; }
+#moneyVal { color:var(--gold); font-size:18px; }
+#fleet-info { margin-top:12px; border-top:1px solid var(--border); padding-top:10px; }
+.fleet-row { font-size:13px; color:#9ca3af; margin:3px 0; }
+.fleet-row b { color:#e5e7eb; }
 
-        #gameContainer {
-            position: relative;
-            width: 100%;
-            height: 100vh;
-            overflow: hidden;
-        }
+/* SHOP RIGHT */
+#shop {
+  position:absolute; top:16px; right:16px;
+  background: var(--ui-bg);
+  border:1px solid var(--border);
+  border-radius:14px; padding:16px;
+  color:white; width:270px;
+  backdrop-filter:blur(8px);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+#shop::-webkit-scrollbar { width:4px; }
+#shop::-webkit-scrollbar-track { background:transparent; }
+#shop::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+#shop h3 {
+  font-family:'Black Ops One',sans-serif; color:var(--gold);
+  font-size:15px; letter-spacing:2px; margin-bottom:12px;
+  border-bottom:1px solid var(--border); padding-bottom:8px; text-align:center;
+}
+.shop-section { margin-bottom:14px; }
+.shop-label { font-size:11px; letter-spacing:2px; color:#6b7280; text-transform:uppercase; margin-bottom:6px; }
 
-        #canvas {
-            display: block;
-            background: linear-gradient(to bottom, #87CEEB 0%, #DEB887 60%, #8B4513 100%);
-        }
+.btn {
+  width:100%; margin:4px 0; padding:9px 12px;
+  border-radius:8px; cursor:pointer; border:1px solid;
+  font-family:'Rajdhani',sans-serif; font-weight:700; font-size:13px;
+  transition: all 0.18s; display:flex; justify-content:space-between; align-items:center;
+  line-height:1.3;
+}
+.btn:hover:not(:disabled) { transform:translateY(-1px); filter:brightness(1.15); }
+.btn:active:not(:disabled) { transform:translateY(0); }
+.btn:disabled { opacity:0.4; cursor:not-allowed; filter:grayscale(0.5); }
 
-        #hud {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 15px;
-            border-radius: 10px;
-            font-size: 14px;
-            min-width: 200px;
-        }
+.btn-yellow { background:linear-gradient(135deg,#854d0e,#713f12); border-color:#b45309; color:#fde68a; }
+.btn-green  { background:linear-gradient(135deg,#14532d,#166534); border-color:#15803d; color:#bbf7d0; }
+.btn-blue   { background:linear-gradient(135deg,#1e3a5f,#1e40af); border-color:#2563eb; color:#bfdbfe; }
+.btn-red    { background:linear-gradient(135deg,#7f1d1d,#991b1b); border-color:#dc2626; color:#fecaca; }
+.btn-special {
+  background:linear-gradient(135deg,#78350f,#92400e);
+  border-color:var(--gold); color:#fef3c7;
+  animation: glow 2.5s infinite;
+}
+.btn-special:hover:not(:disabled) { background:linear-gradient(135deg,#92400e,#b45309); }
+@keyframes glow { 0%,100%{box-shadow:0 0 8px rgba(245,158,11,0.3)} 50%{box-shadow:0 0 18px rgba(245,158,11,0.7)} }
 
-        #upgradeMenu {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            max-width: 300px;
-        }
+.btn-cost { font-size:12px; color:#fbbf24; white-space:nowrap; margin-left:6px; }
+.btn-name { flex:1; text-align:left; }
 
-        .upgrade-btn {
-            width: 100%;
-            margin: 8px 0;
-            padding: 10px;
-            background: linear-gradient(to bottom, #4CAF50, #2E7D32);
-            color: white;
-            border: 2px solid #66BB6A;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 13px;
-            transition: all 0.3s;
-        }
+/* CONTROLS */
+#controls {
+  position:absolute; bottom:16px; left:50%; transform:translateX(-50%);
+  background:var(--ui-bg); border:1px solid var(--border);
+  color:#9ca3af; font-size:13px; padding:10px 24px;
+  border-radius:30px; letter-spacing:1px; backdrop-filter:blur(8px);
+  pointer-events:none;
+}
 
-        .upgrade-btn:hover:not(:disabled) {
-            background: linear-gradient(to bottom, #66BB6A, #4CAF50);
-            transform: scale(1.05);
-        }
+/* TOAST */
+#toast {
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  background:rgba(0,0,0,0.9); color:#fbbf24;
+  font-family:'Black Ops One',sans-serif; font-size:22px;
+  padding:18px 40px; border-radius:14px;
+  border:1px solid var(--gold); pointer-events:none;
+  opacity:0; transition:opacity 0.3s;
+  box-shadow:0 0 40px rgba(245,158,11,0.4);
+  text-align:center; z-index:100;
+}
 
-        .upgrade-btn:disabled {
-            background: #555;
-            border-color: #777;
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-
-        .upgrade-btn.belardi {
-            background: linear-gradient(to bottom, #FFD700, #FF8C00);
-            border-color: #FFA500;
-            font-weight: bold;
-            animation: pulse 2s infinite;
-        }
-
-        .upgrade-btn.belardi:hover:not(:disabled) {
-            background: linear-gradient(to bottom, #FFED4E, #FFD700);
-        }
-
-        @keyframes pulse {
-            0%, 100% {
-                box-shadow: 0 0 10px #FFD700;
-            }
-            50% {
-                box-shadow: 0 0 20px #FFD700, 0 0 30px #FF8C00;
-            }
-        }
-
-        h2 {
-            margin-bottom: 10px;
-            font-size: 18px;
-            text-align: center;
-            color: #FFD700;
-        }
-
-        .stat {
-            margin: 5px 0;
-            font-size: 14px;
-        }
-
-        #controls {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 10px;
-            text-align: center;
-        }
-
-        .particle {
-            position: absolute;
-            pointer-events: none;
-        }
-    </style>
+/* EARNINGS POP */
+.pop { position:absolute; pointer-events:none; font-family:'Black Ops One',sans-serif;
+  font-size:14px; z-index:50; white-space:nowrap; }
+</style>
 </head>
 <body>
-    <div id="gameContainer">
-        <canvas id="canvas"></canvas>
-        
-        <div id="hud">
-            <div class="stat">💰 Dinero: <span id="money">0</span></div>
-            <div class="stat">⚡ Velocidad: <span id="speedDisplay">1</span>x</div>
-            <div class="stat">💪 Potencia: <span id="powerDisplay">1</span>x</div>
-            <div class="stat">🎯 Puntos: <span id="score">0</span></div>
-            <div class="stat" id="belardiStatus" style="display:none; color: #FFD700; font-weight: bold;">
-                ⭐ BELARDI ACTIVO ⭐
-            </div>
-        </div>
+<canvas id="canvas"></canvas>
 
-        <div id="upgradeMenu">
-            <h2>🔧 MEJORAS</h2>
-            <button class="upgrade-btn" onclick="buyUpgrade('speed')">
-                🏃 Velocidad (+1)<br>
-                Costo: <span id="speedCost">50</span> 💰
-            </button>
-            <button class="upgrade-btn" onclick="buyUpgrade('power')">
-                💪 Potencia (+1)<br>
-                Costo: <span id="powerCost">100</span> 💰
-            </button>
-            <button class="upgrade-btn" onclick="buyUpgrade('capacity')">
-                📦 Capacidad (+5)<br>
-                Costo: <span id="capacityCost">75</span> 💰
-            </button>
-            <button class="upgrade-btn belardi" onclick="buyUpgrade('belardi')">
-                ⭐ BELARDI ⭐<br>
-                <small>Multiplicador x2 permanente</small><br>
-                Costo: <span id="belardiCost">500</span> 💰
-            </button>
-        </div>
+<div id="hud">
+  <h3>📊 ESTADO</h3>
+  <div class="stat"><span><span class="icon">💰</span>Dinero</span><span id="moneyVal">0</span></div>
+  <div class="stat"><span><span class="icon">🎯</span>Total ganado</span><span id="totalVal">0</span></div>
+  <div class="stat"><span><span class="icon">⚡</span>Velocidad</span><span id="speedVal">1x</span></div>
+  <div class="stat"><span><span class="icon">💪</span>Potencia</span><span id="powerVal">1x</span></div>
+  <div class="stat"><span><span class="icon">🧲</span>Radio</span><span id="radiusVal">1x</span></div>
+  <div id="fleet-info">
+    <div class="fleet-row">🚜 Bulldozers: <b id="bdCount">1</b></div>
+    <div class="fleet-row">⚙️ Belardis: <b id="lmCount">0</b></div>
+    <div class="fleet-row">⛏️ Pilas recogidas: <b id="pileCount">0</b></div>
+  </div>
+</div>
 
-        <div id="controls">
-            🎮 Usa las flechas ←↑↓→ o WASD para moverte
-        </div>
-    </div>
+<div id="shop">
+  <h3>🔧 TIENDA</h3>
 
-    <script>
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
+  <div class="shop-section">
+    <div class="shop-label">⚙️ Mejoras de bulldozer</div>
+    <button class="btn btn-yellow" id="btnSpeed" onclick="buy('speed')">
+      <span class="btn-name">⚡ Velocidad +1</span>
+      <span class="btn-cost" id="costSpeed">50💰</span>
+    </button>
+    <button class="btn btn-yellow" id="btnPower" onclick="buy('power')">
+      <span class="btn-name">💪 Potencia +1</span>
+      <span class="btn-cost" id="costPower">100💰</span>
+    </button>
+    <button class="btn btn-yellow" id="btnRadius" onclick="buy('radius')">
+      <span class="btn-name">🧲 Radio recogida +1</span>
+      <span class="btn-cost" id="costRadius">80💰</span>
+    </button>
+  </div>
 
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+  <div class="shop-section">
+    <div class="shop-label">🚜 Flota de bulldozers</div>
+    <button class="btn btn-green" id="btnBd" onclick="buy('bulldozer')">
+      <span class="btn-name">🚜 Añadir bulldozer</span>
+      <span class="btn-cost" id="costBd">200💰</span>
+    </button>
+    <div style="font-size:11px;color:#6b7280;margin:2px 6px 6px;">Se controlan todos a la vez</div>
+  </div>
 
-        // Game state
-        const game = {
-            money: 0,
-            score: 0,
-            speed: 1,
-            power: 1,
-            capacity: 10,
-            hasBelardi: false,
-            belardiMultiplier: 1
-        };
+  <div class="shop-section">
+    <div class="shop-label">⚙️ Belardis automáticos</div>
+    <button class="btn btn-blue" id="btnLm" onclick="buy('lawnmower')">
+      <span class="btn-name">⚙️ Comprar Belardi</span>
+      <span class="btn-cost" id="costLm">350💰</span>
+    </button>
+    <div style="font-size:11px;color:#6b7280;margin:2px 6px 6px;">Autónomo, 60% de eficiencia</div>
+    <button class="btn btn-blue" id="btnLmEff" onclick="buy('lmEfficiency')">
+      <span class="btn-name">⬆️ Eficiencia Belardi</span>
+      <span class="btn-cost" id="costLmEff">300💰</span>
+    </button>
+    <button class="btn btn-blue" id="btnLmSpd" onclick="buy('lmSpeed')">
+      <span class="btn-name">💨 Velocidad Belardi</span>
+      <span class="btn-cost" id="costLmSpd">250💰</span>
+    </button>
+  </div>
 
-        // Costs
-        const costs = {
-            speed: 50,
-            power: 100,
-            capacity: 75,
-            belardi: 500
-        };
+  <div class="shop-section">
+    <div class="shop-label">🗺️ Campo</div>
+    <button class="btn btn-red" id="btnPiles" onclick="buy('morePiles')">
+      <span class="btn-name">⛏️ Más pilas en campo</span>
+      <span class="btn-cost" id="costPiles">150💰</span>
+    </button>
+    <button class="btn btn-red" id="btnValue" onclick="buy('pileValue')">
+      <span class="btn-name">💎 Valor de pilas +50%</span>
+      <span class="btn-cost" id="costValue">400💰</span>
+    </button>
+  </div>
 
-        // Bulldozer
-        const bulldozer = {
-            x: canvas.width / 2,
-            y: canvas.height / 2,
-            width: 60,
-            height: 40,
-            angle: 0,
-            speed: 0,
-            maxSpeed: 3,
-            rotation: 0,
-            collected: 0
-        };
+  <div class="shop-section">
+    <div class="shop-label">⭐ Especial</div>
+    <button class="btn btn-special" id="btnDouble" onclick="buy('doubleEarnings')">
+      <span class="btn-name">💰 Ingresos x2 permanente</span>
+      <span class="btn-cost" id="costDouble">800💰</span>
+    </button>
+  </div>
+</div>
 
-        // Obstacles (dirt piles)
-        const obstacles = [];
-        const maxObstacles = 20;
+<div id="controls">🎮 WASD / ←↑↓→ mover &nbsp;|&nbsp; Todos los bulldozers se mueven juntos</div>
+<div id="toast"></div>
 
-        // Particles
-        const particles = [];
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-        // Controls
-        const keys = {};
+// ---- Game State ----
+const G = {
+  money: 0, totalEarned: 0,
+  speed: 1, power: 1, radius: 1,
+  pilesCollected: 0,
+  lmEfficiency: 0.6,
+  lmSpeed: 1,
+  pileValueMult: 1,
+  doubleEarnings: false,
+  maxPiles: 22,
+};
 
-        window.addEventListener('keydown', (e) => {
-            keys[e.key.toLowerCase()] = true;
-        });
+const COSTS = {
+  speed: 50, power: 100, radius: 80,
+  bulldozer: 200, lawnmower: 350,
+  lmEfficiency: 300, lmSpeed: 250,
+  morePiles: 150, pileValue: 400,
+  doubleEarnings: 800,
+};
 
-        window.addEventListener('keyup', (e) => {
-            keys[e.key.toLowerCase()] = false;
-        });
+const keys = {};
+window.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; e.preventDefault?.(); });
+window.addEventListener('keyup',   e => { keys[e.key.toLowerCase()] = false; });
 
-        // Initialize obstacles
-        function createObstacle() {
-            return {
-                x: Math.random() * (canvas.width - 40) + 20,
-                y: Math.random() * (canvas.height - 40) + 20,
-                size: 20 + Math.random() * 20,
-                value: Math.floor(5 + Math.random() * 15),
-                color: `rgb(${139 + Math.random() * 50}, ${69 + Math.random() * 20}, 19)`
-            };
-        }
+// ---- Piles ----
+const piles = [];
+function makePile() {
+  const margin = 60;
+  return {
+    x: margin + Math.random()*(canvas.width - margin*2),
+    y: margin + Math.random()*(canvas.height - margin*2),
+    r: 16 + Math.random()*16,
+    value: 8 + Math.floor(Math.random()*14),
+    hue: 20 + Math.random()*20,
+  };
+}
+for (let i=0;i<G.maxPiles;i++) piles.push(makePile());
 
-        for (let i = 0; i < maxObstacles; i++) {
-            obstacles.push(createObstacle());
-        }
+// ---- Bulldozers ----
+const bulldozers = [];
+function addBulldozer(x, y) {
+  bulldozers.push({ x: x ?? canvas.width/2, y: y ?? canvas.height/2, angle: 0, spd: 0, trail:[] });
+}
+addBulldozer();
 
-        // Create particle effect
-        function createParticles(x, y, color) {
-            for (let i = 0; i < 10; i++) {
-                particles.push({
-                    x: x,
-                    y: y,
-                    vx: (Math.random() - 0.5) * 5,
-                    vy: (Math.random() - 0.5) * 5,
-                    life: 1,
-                    color: color,
-                    size: Math.random() * 5 + 2
-                });
-            }
-        }
+// ---- Lawnmowers ----
+const lawnmowers = [];
+function addLawnmower() {
+  const margin=80;
+  lawnmowers.push({
+    x: margin+Math.random()*(canvas.width-margin*2),
+    y: margin+Math.random()*(canvas.height-margin*2),
+    angle: Math.random()*Math.PI*2,
+    spd: 1.4, timer:0,
+    targetIdx: -1,
+  });
+}
 
-        // Update particles
-        function updateParticles() {
-            for (let i = particles.length - 1; i >= 0; i--) {
-                const p = particles[i];
-                p.x += p.vx;
-                p.y += p.vy;
-                p.vy += 0.2; // gravity
-                p.life -= 0.02;
+// ---- Particles ----
+const particles = [];
+function burst(x,y,color,n=12) {
+  for (let i=0;i<n;i++) {
+    const a=Math.random()*Math.PI*2, v=1+Math.random()*4;
+    particles.push({ x,y, vx:Math.cos(a)*v, vy:Math.sin(a)*v,
+      r:2+Math.random()*4, life:1, color });
+  }
+}
 
-                if (p.life <= 0) {
-                    particles.splice(i, 1);
-                }
-            }
-        }
+// ---- Floating earnings ----
+const pops = [];
+function showPop(x,y,val,color='#fbbf24') {
+  pops.push({ x, y, val, color, life:1, vy:-1.2 });
+}
 
-        // Draw particles
-        function drawParticles() {
-            particles.forEach(p => {
-                ctx.globalAlpha = p.life;
-                ctx.fillStyle = p.color;
-                ctx.fillRect(p.x, p.y, p.size, p.size);
-            });
-            ctx.globalAlpha = 1;
-        }
+// ---- Toast ----
+let toastTimer=0;
+function toast(msg) {
+  const el=document.getElementById('toast');
+  el.innerHTML=msg; el.style.opacity='1';
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.style.opacity='0', 2200);
+}
 
-        // Draw bulldozer
-        function drawBulldozer() {
-            ctx.save();
-            ctx.translate(bulldozer.x, bulldozer.y);
-            ctx.rotate(bulldozer.angle);
+// ---- Buy ----
+function buy(type) {
+  const cost=COSTS[type];
+  if (G.money<cost) { toast('💸 Sin fondos'); return; }
+  G.money-=cost;
 
-            // Body
-            ctx.fillStyle = game.hasBelardi ? '#FFD700' : '#FFD700';
-            ctx.fillRect(-30, -20, 60, 40);
-            
-            // Cabin
-            ctx.fillStyle = game.hasBelardi ? '#FF8C00' : '#FFA500';
-            ctx.fillRect(-15, -25, 30, 30);
-            
-            // Window
-            ctx.fillStyle = '#87CEEB';
-            ctx.fillRect(-10, -20, 20, 15);
-            
-            // Blade
-            ctx.fillStyle = '#C0C0C0';
-            ctx.fillRect(-35, -15, 10, 30);
-            
-            // Tracks
-            ctx.fillStyle = '#333';
-            ctx.fillRect(-30, -25, 60, 8);
-            ctx.fillRect(-30, 17, 60, 8);
+  switch(type) {
+    case 'speed':     G.speed+=0.5; COSTS.speed=Math.round(COSTS.speed*1.6); break;
+    case 'power':     G.power+=0.5; COSTS.power=Math.round(COSTS.power*1.6); break;
+    case 'radius':    G.radius+=0.4; COSTS.radius=Math.round(COSTS.radius*1.5); break;
+    case 'bulldozer': {
+      const ox=(Math.random()-0.5)*120, oy=(Math.random()-0.5)*120;
+      addBulldozer(canvas.width/2+ox, canvas.height/2+oy);
+      COSTS.bulldozer=Math.round(COSTS.bulldozer*2);
+      toast(`🚜 ¡Bulldozer #${bulldozers.length} en campo!`);
+      break;
+    }
+    case 'lawnmower':
+      addLawnmower();
+      COSTS.lawnmower=Math.round(COSTS.lawnmower*1.8);
+      toast(`⚙️ ¡Belardi #${lawnmowers.length} desplegado!`);
+      break;
+    case 'lmEfficiency': G.lmEfficiency=Math.min(0.95,G.lmEfficiency+0.08); COSTS.lmEfficiency=Math.round(COSTS.lmEfficiency*1.7); break;
+    case 'lmSpeed':       G.lmSpeed+=0.4; COSTS.lmSpeed=Math.round(COSTS.lmSpeed*1.6); break;
+    case 'morePiles':     G.maxPiles+=5; for(let i=0;i<5;i++) piles.push(makePile()); COSTS.morePiles=Math.round(COSTS.morePiles*1.8); break;
+    case 'pileValue':     G.pileValueMult*=1.5; COSTS.pileValue=Math.round(COSTS.pileValue*2.2); break;
+    case 'doubleEarnings':
+      G.doubleEarnings=true;
+      COSTS.doubleEarnings=Infinity;
+      toast('💰 INGRESOS DUPLICADOS POR SIEMPRE!');
+      break;
+  }
+  updateUI();
+}
 
-            // Belardi effect
-            if (game.hasBelardi) {
-                ctx.strokeStyle = '#FFD700';
-                ctx.lineWidth = 3;
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = '#FFD700';
-                ctx.strokeRect(-32, -22, 64, 44);
-                ctx.shadowBlur = 0;
-            }
+function earn(x, y, baseVal, multiplier=1) {
+  const raw = baseVal * G.power * G.pileValueMult * multiplier * (G.doubleEarnings?2:1);
+  const v = Math.ceil(raw);
+  G.money += v;
+  G.totalEarned += v;
+  G.pilesCollected++;
+  showPop(x,y,'+'+v);
+  return v;
+}
 
-            ctx.restore();
-        }
+// ---- Draw Ground ----
+function drawGround() {
+  const g = ctx.createLinearGradient(0,0,0,canvas.height);
+  g.addColorStop(0,'#1c2b0a');
+  g.addColorStop(0.55,'#2d4a10');
+  g.addColorStop(1,'#3d2010');
+  ctx.fillStyle=g;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
 
-        // Draw obstacles
-        function drawObstacles() {
-            obstacles.forEach(obs => {
-                ctx.fillStyle = obs.color;
-                ctx.beginPath();
-                ctx.arc(obs.x, obs.y, obs.size, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Value indicator
-                ctx.fillStyle = 'white';
-                ctx.font = 'bold 12px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText(obs.value, obs.x, obs.y + 4);
-            });
-        }
+  // Grid lines (subtle)
+  ctx.strokeStyle='rgba(255,255,255,0.025)';
+  ctx.lineWidth=1;
+  for(let x=0;x<canvas.width;x+=60){
+    ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();
+  }
+  for(let y=0;y<canvas.height;y+=60){
+    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();
+  }
+}
 
-        // Update bulldozer
-        function updateBulldozer() {
-            // Movement
-            if (keys['arrowup'] || keys['w']) {
-                bulldozer.speed = Math.min(bulldozer.speed + 0.5, bulldozer.maxSpeed * game.speed);
-            } else if (keys['arrowdown'] || keys['s']) {
-                bulldozer.speed = Math.max(bulldozer.speed - 0.5, -bulldozer.maxSpeed * game.speed * 0.5);
-            } else {
-                bulldozer.speed *= 0.95;
-            }
+// ---- Draw Pile ----
+function drawPile(p) {
+  // Shadow
+  ctx.fillStyle='rgba(0,0,0,0.25)';
+  ctx.beginPath();ctx.ellipse(p.x+4,p.y+5,p.r,p.r*0.6,0,0,Math.PI*2);ctx.fill();
+  // Pile
+  const gc=ctx.createRadialGradient(p.x-p.r*0.3,p.y-p.r*0.3,0,p.x,p.y,p.r);
+  gc.addColorStop(0,`hsl(${p.hue+10},60%,45%)`);
+  gc.addColorStop(1,`hsl(${p.hue},55%,28%)`);
+  ctx.fillStyle=gc;
+  ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();
+  // Value
+  ctx.fillStyle='rgba(255,255,255,0.9)';
+  ctx.font=`bold ${Math.max(10,p.r*0.7)}px Rajdhani`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(p.value,p.x,p.y);
+}
 
-            // Rotation
-            if (keys['arrowleft'] || keys['a']) {
-                bulldozer.angle -= 0.05;
-            }
-            if (keys['arrowright'] || keys['d']) {
-                bulldozer.angle += 0.05;
-            }
+// ---- Draw Bulldozer ----
+function drawBulldozer(bd, idx) {
+  ctx.save();
+  ctx.translate(bd.x,bd.y);
+  ctx.rotate(bd.angle);
+  const w=58,h=36;
+  // Shadow
+  ctx.fillStyle='rgba(0,0,0,0.3)';
+  ctx.fillRect(-w/2+4, -h/2+5, w, h);
+  // Tracks
+  ctx.fillStyle='#1c1c1c';
+  ctx.fillRect(-w/2,-h/2-5,w,8); ctx.fillRect(-w/2,h/2-3,w,8);
+  ctx.strokeStyle='#444'; ctx.lineWidth=1.5;
+  for(let tx=-w/2;tx<w/2;tx+=9){
+    ctx.beginPath();ctx.moveTo(tx,-h/2-5);ctx.lineTo(tx,-h/2+3);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(tx,h/2-3);ctx.lineTo(tx,h/2+3);ctx.stroke();
+  }
+  // Body
+  const bodyG=ctx.createLinearGradient(-w/2,-h/2,w/2,h/2);
+  bodyG.addColorStop(0,'#fbbf24'); bodyG.addColorStop(1,'#d97706');
+  ctx.fillStyle=bodyG;
+  ctx.fillRect(-w/2,-h/2+5,w,h-10);
+  // Cabin (sits toward the back = left side)
+  ctx.fillStyle='#f59e0b';
+  ctx.fillRect(-w/2+4,-h/2+2,26,h-4);
+  // Window
+  ctx.fillStyle='#7dd3fc';
+  ctx.fillRect(-w/2+6,-h/2+5,20,12);
+  ctx.strokeStyle='rgba(0,0,0,0.3)'; ctx.lineWidth=1;
+  ctx.strokeRect(-w/2+6,-h/2+5,20,12);
+  // BLADE at the FRONT (right = +x direction)
+  ctx.fillStyle='#cbd5e1';
+  ctx.fillRect(w/2-2, -h/2+3, 13, h-6);
+  ctx.fillStyle='#f1f5f9';
+  ctx.fillRect(w/2-2, -h/2+3, 5, h-6);
+  ctx.fillStyle='#94a3b8';
+  ctx.fillRect(w/2+9, -h/2+7, 3, h-14);
+  // Number tag
+  if(bulldozers.length>1){
+    ctx.fillStyle='rgba(0,0,0,0.65)';
+    ctx.fillRect(-6,-6,16,13);
+    ctx.fillStyle='#fff';
+    ctx.font='bold 10px Rajdhani'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(idx+1,2,1);
+  }
+  ctx.restore();
+}
 
-            // Move
-            bulldozer.x += Math.cos(bulldozer.angle) * bulldozer.speed;
-            bulldozer.y += Math.sin(bulldozer.angle) * bulldozer.speed;
+// ---- Draw Belardi (lawnmower) ----
+function drawLawnmower(lm) {
+  ctx.save();
+  ctx.translate(lm.x, lm.y);
+  ctx.rotate(lm.angle);
+  const w=38, h=26;
 
-            // Wrap around screen
-            if (bulldozer.x < 0) bulldozer.x = canvas.width;
-            if (bulldozer.x > canvas.width) bulldozer.x = 0;
-            if (bulldozer.y < 0) bulldozer.y = canvas.height;
-            if (bulldozer.y > canvas.height) bulldozer.y = 0;
+  // Shadow
+  ctx.fillStyle='rgba(0,0,0,0.25)';
+  ctx.beginPath();
+  ctx.ellipse(3, 5, w/2, h/3, 0, 0, Math.PI*2);
+  ctx.fill();
 
-            // Check collisions with obstacles
-            for (let i = obstacles.length - 1; i >= 0; i--) {
-                const obs = obstacles[i];
-                const dx = bulldozer.x - obs.x;
-                const dy = bulldozer.y - obs.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
+  // --- Wheels (drawn before body so body overlaps slightly) ---
+  const wheelPositions = [[-w/2+4,-h/2+1],[w/2-6,-h/2+1],[-w/2+4,h/2-1],[w/2-6,h/2-1]];
+  wheelPositions.forEach(([wx,wy])=>{
+    // Tyre
+    ctx.fillStyle='#111';
+    ctx.beginPath(); ctx.arc(wx,wy,5,0,Math.PI*2); ctx.fill();
+    // Rim
+    ctx.fillStyle='#888';
+    ctx.beginPath(); ctx.arc(wx,wy,2.5,0,Math.PI*2); ctx.fill();
+    // Rim detail
+    ctx.strokeStyle='#aaa'; ctx.lineWidth=0.8;
+    ctx.beginPath(); ctx.arc(wx,wy,3.8,0,Math.PI*2); ctx.stroke();
+  });
 
-                if (distance < obs.size + 30) {
-                    // Collect obstacle
-                    const earnings = obs.value * game.power * game.belardiMultiplier;
-                    game.money += earnings;
-                    game.score += earnings;
-                    bulldozer.collected++;
-                    
-                    createParticles(obs.x, obs.y, obs.color);
-                    obstacles.splice(i, 1);
-                    obstacles.push(createObstacle());
-                }
-            }
-        }
+  // --- Main body (grey with texture panels) ---
+  const bodyG = ctx.createLinearGradient(-w/2,-h/2, w/2,h/2);
+  bodyG.addColorStop(0,'#c0c0c0');
+  bodyG.addColorStop(0.4,'#a8a8a8');
+  bodyG.addColorStop(1,'#787878');
+  ctx.fillStyle=bodyG;
+  ctx.beginPath();
+  ctx.roundRect(-w/2+2, -h/2+3, w-4, h-6, 4);
+  ctx.fill();
 
-        // Buy upgrade
-        function buyUpgrade(type) {
-            const cost = costs[type];
-            
-            if (game.money < cost) {
-                alert('¡No tienes suficiente dinero! 💰');
-                return;
-            }
+  // Texture lines (panel grooves)
+  ctx.strokeStyle='rgba(80,80,80,0.5)'; ctx.lineWidth=1;
+  for(let tx=-w/2+8; tx<w/2-4; tx+=8){
+    ctx.beginPath(); ctx.moveTo(tx,-h/2+4); ctx.lineTo(tx,h/2-4); ctx.stroke();
+  }
+  // Cross brace
+  ctx.beginPath(); ctx.moveTo(-w/2+4,0); ctx.lineTo(w/2-4,0); ctx.stroke();
 
-            game.money -= cost;
+  // Top highlight sheen
+  ctx.fillStyle='rgba(255,255,255,0.18)';
+  ctx.beginPath();
+  ctx.roundRect(-w/2+3,-h/2+3,w-6,6,3);
+  ctx.fill();
 
-            switch(type) {
-                case 'speed':
-                    game.speed += 1;
-                    costs.speed = Math.floor(costs.speed * 1.5);
-                    break;
-                case 'power':
-                    game.power += 1;
-                    costs.power = Math.floor(costs.power * 1.5);
-                    break;
-                case 'capacity':
-                    game.capacity += 5;
-                    costs.capacity = Math.floor(costs.capacity * 1.5);
-                    break;
-                case 'belardi':
-                    if (!game.hasBelardi) {
-                        game.hasBelardi = true;
-                        game.belardiMultiplier = 2;
-                        document.getElementById('belardiStatus').style.display = 'block';
-                        alert('¡🌟 BELARDI ACTIVADO! 🌟\n¡Todas tus ganancias se duplican!');
-                    }
-                    break;
-            }
+  // --- Engine bump (top center) ---
+  const engG = ctx.createLinearGradient(-6,-h/2, 6,-h/2+8);
+  engG.addColorStop(0,'#b0b0b0'); engG.addColorStop(1,'#686868');
+  ctx.fillStyle=engG;
+  ctx.beginPath(); ctx.roundRect(-6,-h/2, 12,8,3); ctx.fill();
+  ctx.strokeStyle='#555'; ctx.lineWidth=0.8;
+  ctx.strokeRect(-6,-h/2,12,8);
 
-            updateUI();
-        }
+  // --- Exhaust pipe ---
+  ctx.fillStyle='#555';
+  ctx.fillRect(-w/2-3,-3,5,6);
+  ctx.fillStyle='rgba(180,180,180,0.3)';
+  ctx.beginPath(); ctx.arc(-w/2-6,0,4,0,Math.PI*2); ctx.fill();
 
-        // Update UI
-        function updateUI() {
-            document.getElementById('money').textContent = Math.floor(game.money);
-            document.getElementById('score').textContent = Math.floor(game.score);
-            document.getElementById('speedDisplay').textContent = game.speed;
-            document.getElementById('powerDisplay').textContent = game.power;
-            
-            document.getElementById('speedCost').textContent = costs.speed;
-            document.getElementById('powerCost').textContent = costs.power;
-            document.getElementById('capacityCost').textContent = costs.capacity;
-            document.getElementById('belardiCost').textContent = costs.belardi;
+  // --- Spinning blade under deck (visible as arc) ---
+  const spin = lm.spinAngle||0;
+  ctx.strokeStyle='rgba(220,220,220,0.7)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.arc(0,2,9, spin, spin+Math.PI*1.3); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0,2,9, spin+Math.PI, spin+Math.PI*2.3); ctx.stroke();
 
-            // Disable buttons if can't afford
-            document.querySelectorAll('.upgrade-btn').forEach((btn, index) => {
-                const types = ['speed', 'power', 'capacity', 'belardi'];
-                const cost = costs[types[index]];
-                btn.disabled = game.money < cost || (types[index] === 'belardi' && game.hasBelardi);
-            });
-        }
+  // --- "BELARDI" label ---
+  ctx.fillStyle='rgba(40,40,40,0.7)';
+  ctx.fillRect(-13,h/2-9,26,7);
+  ctx.fillStyle='#ddd';
+  ctx.font='bold 6px Rajdhani';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('BELARDI', 0, h/2-5.5);
 
-        // Game loop
-        function gameLoop() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.restore();
+}
 
-            // Draw ground texture
-            ctx.fillStyle = '#8B7355';
-            ctx.fillRect(0, canvas.height * 0.6, canvas.width, canvas.height * 0.4);
+// ---- Update Bulldozers ----
+function updateBulldozers() {
+  const maxSpd = 3.5 * G.speed;
+  let dx=0, dy=0;
+  if(keys['arrowup']||keys['w'])    dy-=1;
+  if(keys['arrowdown']||keys['s'])  dy+=1;
+  if(keys['arrowleft']||keys['a'])  dx-=1;
+  if(keys['arrowright']||keys['d']) dx+=1;
 
-            drawObstacles();
-            drawBulldozer();
-            updateBulldozer();
-            updateParticles();
-            drawParticles();
-            updateUI();
+  const isMoving=dx||dy;
+  const targetAngle = isMoving ? Math.atan2(dy,dx) : null;
 
-            requestAnimationFrame(gameLoop);
-        }
+  bulldozers.forEach(bd=>{
+    if(targetAngle!==null){
+      // Smooth angle
+      let da = targetAngle - bd.angle;
+      while(da>Math.PI) da-=Math.PI*2;
+      while(da<-Math.PI) da+=Math.PI*2;
+      bd.angle += da*0.15;
+      bd.spd = Math.min(bd.spd+0.4, maxSpd);
+    } else {
+      bd.spd *= 0.92;
+    }
 
-        // Handle window resize
-        window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        });
+    bd.x += Math.cos(bd.angle)*bd.spd;
+    bd.y += Math.sin(bd.angle)*bd.spd;
+    bd.x = Math.max(40,Math.min(canvas.width-40,bd.x));
+    bd.y = Math.max(40,Math.min(canvas.height-40,bd.y));
 
-        // Start game
-        gameLoop();
-    </script>
+    // Trail
+    bd.trail.push({x:bd.x,y:bd.y});
+    if(bd.trail.length>12) bd.trail.shift();
+
+    // Collect piles
+    const rr = (34+G.radius*10);
+    for(let i=piles.length-1;i>=0;i--){
+      const p=piles[i];
+      const d=Math.hypot(bd.x-p.x,bd.y-p.y);
+      if(d<rr+p.r){
+        earn(p.x,p.y,p.value);
+        burst(p.x,p.y,`hsl(${p.hue},70%,50%)`);
+        piles.splice(i,1);
+        piles.push(makePile());
+      }
+    }
+  });
+}
+
+// ---- Update Lawnmowers ----
+function updateLawnmowers() {
+  lawnmowers.forEach(lm=>{
+    // Find nearest pile
+    let best=-1, bestDist=Infinity;
+    piles.forEach((p,i)=>{
+      const d=Math.hypot(lm.x-p.x,lm.y-p.y);
+      if(d<bestDist){ bestDist=d; best=i; }
+    });
+
+    if(best>=0){
+      const p=piles[best];
+      const ta=Math.atan2(p.y-lm.y,p.x-lm.x);
+      let da=ta-lm.angle;
+      while(da>Math.PI)da-=Math.PI*2; while(da<-Math.PI)da+=Math.PI*2;
+      lm.angle+=da*0.1;
+    }
+
+    const spd = 1.4*G.lmSpeed;
+    lm.x+=Math.cos(lm.angle)*spd;
+    lm.y+=Math.sin(lm.angle)*spd;
+    lm.x=Math.max(30,Math.min(canvas.width-30,lm.x));
+    lm.y=Math.max(30,Math.min(canvas.height-30,lm.y));
+
+    lm.spinAngle=(lm.spinAngle||0)+0.18;
+
+    // Collect - 60% efficiency base
+    const rr=22;
+    for(let i=piles.length-1;i>=0;i--){
+      const p=piles[i];
+      if(Math.hypot(lm.x-p.x,lm.y-p.y)<rr+p.r){
+        earn(p.x,p.y,p.value,G.lmEfficiency);
+        burst(p.x,p.y,'#4ade80',7);
+        piles.splice(i,1);
+        piles.push(makePile());
+        break; // one at a time
+      }
+    }
+
+    // Bounce off walls
+    if(lm.x<=30||lm.x>=canvas.width-30) lm.angle=Math.PI-lm.angle;
+    if(lm.y<=30||lm.y>=canvas.height-30) lm.angle=-lm.angle;
+  });
+}
+
+// ---- Update Particles ----
+function updateParticles() {
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.12;
+    p.life-=0.025;
+    if(p.life<=0) particles.splice(i,1);
+  }
+}
+
+// ---- Draw Particles ----
+function drawParticles() {
+  particles.forEach(p=>{
+    ctx.globalAlpha=Math.max(0,p.life);
+    ctx.fillStyle=p.color;
+    const r=Math.max(0,p.r*p.life);
+    ctx.beginPath(); ctx.arc(p.x,p.y,r,0,Math.PI*2); ctx.fill();
+  });
+  ctx.globalAlpha=1;
+}
+
+// ---- Draw Trails ----
+function drawTrails() {
+  bulldozers.forEach(bd=>{
+    bd.trail.forEach((t,i)=>{
+      ctx.globalAlpha=0.06*(i/bd.trail.length);
+      ctx.fillStyle='#fbbf24';
+      ctx.beginPath();ctx.arc(t.x,t.y,10*(i/bd.trail.length),0,Math.PI*2);ctx.fill();
+    });
+  });
+  ctx.globalAlpha=1;
+}
+
+// ---- Update & Draw pops ----
+function updatePops() {
+  for(let i=pops.length-1;i>=0;i--){
+    const p=pops[i];
+    p.y+=p.vy; p.life-=0.022;
+    if(p.life<=0){ pops.splice(i,1); continue; }
+    ctx.globalAlpha=p.life;
+    ctx.fillStyle=p.color;
+    ctx.font=`bold ${12+Math.round((1-p.life)*4)}px Rajdhani`;
+    ctx.textAlign='center';
+    ctx.fillText(p.val,p.x,p.y);
+  }
+  ctx.globalAlpha=1;
+}
+
+// ---- UI ----
+let uiTick=0;
+function updateUI(){
+  document.getElementById('moneyVal').textContent=Math.floor(G.money).toLocaleString();
+  document.getElementById('totalVal').textContent=Math.floor(G.totalEarned).toLocaleString();
+  document.getElementById('speedVal').textContent=G.speed.toFixed(1)+'x';
+  document.getElementById('powerVal').textContent=G.power.toFixed(1)+'x';
+  document.getElementById('radiusVal').textContent=G.radius.toFixed(1)+'x';
+  document.getElementById('bdCount').textContent=bulldozers.length;
+  document.getElementById('lmCount').textContent=lawnmowers.length;
+  document.getElementById('pileCount').textContent=G.pilesCollected.toLocaleString();
+
+  const cs=[['Speed','speed'],['Power','power'],['Radius','radius'],['Bd','bulldozer'],
+    ['Lm','lawnmower'],['LmEff','lmEfficiency'],['LmSpd','lmSpeed'],
+    ['Piles','morePiles'],['Value','pileValue'],['Double','doubleEarnings']];
+  cs.forEach(([id,key])=>{
+    const btn=document.getElementById('btn'+id);
+    const cEl=document.getElementById('cost'+id);
+    if(!btn) return;
+    const c=COSTS[key];
+    if(cEl) cEl.textContent=(c===Infinity?'✅ Comprado':c+'💰');
+    btn.disabled = G.money<c || c===Infinity || (key==='doubleEarnings'&&G.doubleEarnings);
+  });
+}
+
+// ---- Main Loop ----
+function loop(){
+  drawGround();
+  drawTrails();
+  piles.forEach(drawPile);
+  lawnmowers.forEach(drawLawnmower);
+  bulldozers.forEach((bd,i)=>drawBulldozer(bd,i));
+  drawParticles();
+  updatePops();
+
+  updateBulldozers();
+  updateLawnmowers();
+  updateParticles();
+
+  uiTick++;
+  if(uiTick%4===0) updateUI();
+
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener('resize',()=>{
+  canvas.width=window.innerWidth;
+  canvas.height=window.innerHeight;
+});
+
+loop();
+updateUI();
+</script>
 </body>
 </html>
